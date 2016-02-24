@@ -34,6 +34,20 @@ This source file is part of the
 #include <SdkTrays.h>
 #include <SdkCameraMan.h>
 
+class Ball{
+protected:
+    Ogre::SceneNode* rootNode;
+    Ogre::Entity* ballEntity;
+    Ogre::Real bRadius;
+    Ogre::Vector3 bDirection;
+    Ogre::Real bSpeed;
+
+public:
+    Ball(Ogre::SceneManager* scnMgr);
+    ~Ball();
+    void move(const Ogre::FrameEvent& evt, std::list<Ogre::Entity*> walls);
+    Ogre::SceneNode* getNode() { return rootNode;}
+};
  
 class MinimalOgre : public Ogre::FrameListener, public Ogre::WindowEventListener, public OIS::KeyListener, public OIS::MouseListener, OgreBites::SdkTrayListener
 {
@@ -63,7 +77,11 @@ protected:
     OIS::InputManager* mInputManager;
     OIS::Mouse*    mMouse;
     OIS::Keyboard* mKeyboard;
- 
+
+    //Ball code
+    Ball* ball;
+    std::list<Ogre::Entity*> walls; 
+
     // Ogre::FrameListener
     virtual bool frameRenderingQueued(const Ogre::FrameEvent& evt);
  
@@ -80,19 +98,7 @@ protected:
     virtual void windowClosed(Ogre::RenderWindow* rw);
 };
 
-class Ball{
-protected:
-    Ogre::SceneNode* rootNode;
-    Ogre::Real bRadius;
-    Ogre::Vector3 bDirection;
-    Ogre::Real bSpeed;
 
-public:
-    Ball(Ogre::SceneManager* scnMgr);
-    ~Ball();
-    void move(const Ogre::FrameEvent& evt);
-    Ogre::SceneNode* getNode() { return rootNode;}
-};
 
- 
+
 #endif // #ifndef __MinimalOgre_h_

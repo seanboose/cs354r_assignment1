@@ -113,7 +113,7 @@ bool MinimalOgre::go(void)
     mCamera = mSceneMgr->createCamera("PlayerCam");
  
     // Position it at 500 in Z direction
-    mCamera->setPosition(Ogre::Vector3(0,0,80));
+    mCamera->setPosition(Ogre::Vector3(0,0,300));
     // Look back along -Z
     mCamera->lookAt(Ogre::Vector3(0,0,-300));
     mCamera->setNearClipDistance(5);
@@ -139,14 +139,15 @@ bool MinimalOgre::go(void)
     Ogre::ResourceGroupManager::getSingleton().initialiseAllResourceGroups();
 //-------------------------------------------------------------------------------------
     // Create the scene
-    Ball* ball = new Ball(mSceneMgr);
+    ball = new Ball(mSceneMgr);
 
-    Ogre::Plane pFloor(Ogre::Vector3::UNIT_Y, -100);
-    Ogre::Plane pCeiling(Ogre::Vector3::NEGATIVE_UNIT_Y, -100);
-    Ogre::Plane pLeft(Ogre::Vector3::UNIT_X, -100);
-    Ogre::Plane pRight(Ogre::Vector3::NEGATIVE_UNIT_X, -100);
-    Ogre::Plane pBack(Ogre::Vector3::NEGATIVE_UNIT_Z, -100);
-    Ogre::Plane pFront(Ogre::Vector3::UNIT_Z, -100);
+    // Really nasty wall creation code. Will make suck less if I have time later.
+    Ogre::MovablePlane pFloor(Ogre::Vector3::UNIT_Y, 0);
+    Ogre::MovablePlane pCeiling(Ogre::Vector3::NEGATIVE_UNIT_Y, 0);
+    Ogre::MovablePlane pLeft(Ogre::Vector3::UNIT_X, 0);
+    Ogre::MovablePlane pRight(Ogre::Vector3::NEGATIVE_UNIT_X, 0);
+    Ogre::MovablePlane pBack(Ogre::Vector3::UNIT_Z, 0);
+    Ogre::MovablePlane pFront(Ogre::Vector3::NEGATIVE_UNIT_Z, 0);
 
     Ogre::MeshManager::getSingleton().createPlane(
         "floor",
@@ -197,44 +198,62 @@ bool MinimalOgre::go(void)
         1, 5, 5,
         Ogre::Vector3::UNIT_Y);
 
-
-
     Ogre::Entity* floorEntity = mSceneMgr->createEntity("floor");
-    mSceneMgr->getRootSceneNode()->createChildSceneNode()->attachObject(floorEntity);
+    Ogre::SceneNode* floorNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+    floorNode->translate(Ogre::Vector3(0,-100,0));
+    floorNode->attachObject(floorEntity);
     floorEntity->setCastShadows(false);
     floorEntity->setMaterialName("Examples/Rockwall");
     
     Ogre::Entity* ceilingEntity = mSceneMgr->createEntity("ceiling");
-    mSceneMgr->getRootSceneNode()->createChildSceneNode()->attachObject(ceilingEntity);
+    Ogre::SceneNode* ceilingNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+    ceilingNode->translate(Ogre::Vector3(0,100,0));
+    ceilingNode->attachObject(ceilingEntity);
     ceilingEntity->setCastShadows(false);
     ceilingEntity->setMaterialName("Examples/Rockwall");
     
     Ogre::Entity* leftEntity = mSceneMgr->createEntity("left");
-    mSceneMgr->getRootSceneNode()->createChildSceneNode()->attachObject(leftEntity);
+    Ogre::SceneNode* leftNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+    leftNode->translate(Ogre::Vector3(-100,0,0));
+    leftNode->attachObject(leftEntity);
     leftEntity->setCastShadows(false);
     leftEntity->setMaterialName("Examples/Rockwall");
     
     Ogre::Entity* rightEntity = mSceneMgr->createEntity("right");
-    mSceneMgr->getRootSceneNode()->createChildSceneNode()->attachObject(rightEntity);
+    Ogre::SceneNode* rightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+    rightNode->translate(Ogre::Vector3(100,0,0));
+    rightNode->attachObject(rightEntity);
     rightEntity->setCastShadows(false);
     rightEntity->setMaterialName("Examples/Rockwall");
     
     Ogre::Entity* backEntity = mSceneMgr->createEntity("back");
-    mSceneMgr->getRootSceneNode()->createChildSceneNode()->attachObject(backEntity);
+    Ogre::SceneNode* backNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+    backNode->translate(Ogre::Vector3(0,0,-100));
+    backNode->attachObject(backEntity);
     backEntity->setCastShadows(false);
     backEntity->setMaterialName("Examples/Rockwall");
     
     Ogre::Entity* frontEntity = mSceneMgr->createEntity("front");
-    mSceneMgr->getRootSceneNode()->createChildSceneNode()->attachObject(frontEntity);
+    Ogre::SceneNode* frontNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+    frontNode->translate(Ogre::Vector3(0,0,100));
+    frontNode->attachObject(frontEntity);
     frontEntity->setCastShadows(false);
     frontEntity->setMaterialName("Examples/Rockwall");
-    
+
+    walls.push_back(floorEntity);
+    walls.push_back(ceilingEntity);
+    walls.push_back(leftEntity);
+    walls.push_back(rightEntity);
+    walls.push_back(frontEntity);
+    walls.push_back(backEntity);
 
     // Set ambient light
     mSceneMgr->setAmbientLight(Ogre::ColourValue(0.5, 0.5, 0.5));
  
     // Create a light
     Ogre::Light* l = mSceneMgr->createLight("MainLight");
+    l->setDiffuseColour(0.5, 0.1, 0.0);
+    l->setSpecularColour(0.5, 0.1, 0.0);
     l->setPosition(20,80,50);
 //-------------------------------------------------------------------------------------
     //create FrameListener
@@ -305,6 +324,9 @@ bool MinimalOgre::frameRenderingQueued(const Ogre::FrameEvent& evt)
     //Need to capture/update each device
     mKeyboard->capture();
     mMouse->capture();
+
+    //Ball movement code
+    ball->move(evt, walls);
  
     mTrayMgr->frameRenderingQueued(evt);
  
@@ -516,12 +538,11 @@ extern "C" {
 
 Ball::Ball(Ogre::SceneManager* scnMgr){
 
-    Ogre::Entity* ballEntity = scnMgr->createEntity("Sphere", "sphere.mesh");
+    ballEntity = scnMgr->createEntity("Sphere", "sphere.mesh");
     ballEntity->setMaterialName("Examples/Rockwall");
     ballEntity->setCastShadows(true);
  
     rootNode = scnMgr->getRootSceneNode()->createChildSceneNode();
-    // rootNode = scnMgr->createSceneNode("Ball");
     rootNode->attachObject(ballEntity);
     rootNode->scale(0.1f, 0.1f, 0.1f);
 
@@ -531,3 +552,23 @@ Ball::Ball(Ogre::SceneManager* scnMgr){
     bSpeed = 250.0f;
 }
 
+void Ball::move(const Ogre::FrameEvent& evt, std::list<Ogre::Entity*> walls){
+    Ogre::Vector3 bPosition = rootNode->getPosition();
+    Ogre::AxisAlignedBox ballBox = ballEntity->getWorldBoundingBox();
+    std::list<Ogre::Entity*>::iterator itr = walls.begin();
+
+    while(itr != walls.end()){
+        Ogre::AxisAlignedBox wallBox = (*itr)->getWorldBoundingBox();
+        if(ballBox.intersects(wallBox)){
+            Ogre::Vector3 pos = (*itr)->getParentNode()->getPosition();
+            if(pos.y == 100) bDirection.y = -bDirection.y;
+            if(pos.y == -100) bDirection.y = -bDirection.y;
+            if(pos.x == 100) bDirection.x = -bDirection.x;
+            if(pos.x == -100) bDirection.x = -bDirection.x;
+            if(pos.z == 100) bDirection.z = -bDirection.z;
+            if(pos.z == -100) bDirection.z = -bDirection.z;
+        }
+        ++itr;
+    }
+    rootNode->translate(bSpeed * evt.timeSinceLastFrame * bDirection);
+}
